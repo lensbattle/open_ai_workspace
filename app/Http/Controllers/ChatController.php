@@ -24,7 +24,7 @@ class ChatController extends Controller
     {
         $data = $request->validate(['title' => ['nullable', 'string', 'max:160']]);
         $conversation = $request->user()->conversations()->create([
-            'title' => $data['title'] ?? 'New conversation',
+            'title' => $data['title'] ?? Conversation::DEFAULT_TITLE,
         ]);
 
         return response()->json(['conversation' => $conversation->load('messages')], 201);
@@ -35,7 +35,12 @@ class ChatController extends Controller
         abort_unless($conversation->user_id === $request->user()->id, 404);
 
         $data = $request->validate(['content' => ['required', 'string', 'max:12000']]);
+        $needsTitle = $conversation->messages()->doesntExist() || $conversation->title === Conversation::DEFAULT_TITLE;
         $conversation->messages()->create(['role' => 'user', 'content' => $data['content']]);
+
+        if ($needsTitle) {
+            $conversation->update(['title' => Conversation::titleFromPrompt($data['content'])]);
+        }
 
         try {
             $reply = $provider->reply($conversation->messages()->oldest()->get(['role', 'content'])->toArray());
@@ -47,6 +52,39 @@ class ChatController extends Controller
 
         $assistantMessage = $conversation->messages()->create(['role' => 'assistant', 'content' => $reply]);
 
-        return response()->json(['message' => $assistantMessage]);
+        if ($needsTitle) {
+            $conversation->update(['title' => $this->nameConversation($provider, $conversation, $data['content'], $reply)]);
+        }
+
+        return response()->json([
+            'message' => $assistantMessage,
+            'conversation' => $conversation->only('id', 'title'),
+        ]);
+    }
+
+    public function destroy(Request $request, Conversation $conversation): JsonResponse
+    {
+        abort_unless($conversation->user_id === $request->user()->id, 404);
+
+        $conversation->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    /**
+     * Ask the provider to name the conversation, falling back to the trimmed prompt.
+     */
+    private function nameConversation(ChatProvider $provider, Conversation $conversation, string $prompt, string $reply): string
+    {
+        try {
+            return $provider->title([
+                ['role' => 'user', 'content' => $prompt],
+                ['role' => 'assistant', 'content' => $reply],
+            ]);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $conversation->title;
+        }
     }
 }
