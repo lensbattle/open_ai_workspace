@@ -30,6 +30,6 @@ jobs:
       - run: touch database/database.sqlite
       - run: php artisan migrate --force
       - run: vendor/bin/pint --format agent
-      - run: php artisan test --compact
       - run: npm ci
       - run: npm run build
+      - run: php artisan test --compact
