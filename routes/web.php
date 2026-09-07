@@ -18,4 +18,5 @@ Route::middleware('auth')->prefix('api')->group(function () {
     Route::get('/conversations', [ChatController::class, 'index']);
     Route::post('/conversations', [ChatController::class, 'store']);
     Route::post('/conversations/{conversation}/messages', [ChatController::class, 'message']);
+    Route::delete('/conversations/{conversation}', [ChatController::class, 'destroy']);
 });

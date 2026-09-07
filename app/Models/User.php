@@ -13,11 +13,13 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable {
+class User extends Authenticatable
+{
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    public function conversations(): HasMany {
+    public function conversations(): HasMany
+    {
         return $this->hasMany(Conversation::class);
     }
 
@@ -26,7 +28,8 @@ class User extends Authenticatable {
      *
      * @return array<string, string>
      */
-    protected function casts(): array {
+    protected function casts(): array
+    {
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
